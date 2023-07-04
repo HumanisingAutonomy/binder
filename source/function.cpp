@@ -390,7 +390,11 @@ string bind_function_setter(const string &module, FunctionDecl const *F, Context
 			documentation = "setter for primitive reference return value {}"_format(F->getQualifiedNameAsString());
 
 			string return_type = standard_name(nonRefQt);
-			outs() << " making setter for " << function_name << " -> " << return_type << "\n";
+			// outs() << " making setter for " << F->getQualifiedNameAsString() << " -> " << return_type << "\n";
+			// outs() << " isConstExpr " << F->isConstexpr()
+			// 		<< " isConsteval " << F->isConsteval()
+			// 		<< " isConst " << m->isConst()
+			// 		<< "\n";
 			pair<string, string> args = function_arguments_for_lambda(F, 0);
 
 			string input_args = "{}, {} value"_format(args.first, return_type);
@@ -524,7 +528,8 @@ string bind_function(string const &module, FunctionDecl const *F, Context &conte
 		}
 	}
 
-	code += bind_function_setter(module, F, context, parent);
+	if (num_params == 0)
+		code += bind_function_setter(module, F, context, parent);
 
 	for( ; args_to_bind < num_params; ++args_to_bind ) {
 		if( F->getParamDecl(args_to_bind)->hasDefaultArg() ) break;
