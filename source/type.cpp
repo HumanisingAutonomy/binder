@@ -398,11 +398,11 @@ bool is_bindable(QualType const &qt)
 		outs() << qt_name << " is a function pointer type\n";
 		return false;
 	}
-	if (qt->isRValueReferenceType())
-	{
-		outs() << qt_name << " is rvalue reference type\n";
-		return false;
-	}
+	// if (qt->isRValueReferenceType())
+	// {
+	// 	outs() << qt_name << " is rvalue reference type\n";
+	// 	return false;
+	// }
 	if (qt->isInstantiationDependentType())
 	{
 		outs() << qt_name << " is instantiation dependent type\n";
