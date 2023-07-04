@@ -439,6 +439,12 @@ string bind_function(FunctionDecl const *F, uint args_to_bind, bool request_bind
 
 	string function_qualified_name = standard_name(parent ? class_qualified_name(parent) + "::" + F->getNameAsString() : F->getQualifiedNameAsString());
 
+	outs() << "-- binding function " << function_qualified_name << "\n";
+
+	// if (function_qualified_name.compare("ha::Point2D<double>::operator=") == 0) {
+	// 	clang::QualType const &rt = F->getReturnType();
+	// }
+
 	CXXMethodDecl const *m = dyn_cast<CXXMethodDecl>(F);
 
 	string maybe_static;
@@ -535,7 +541,11 @@ string bind_function(string const &module, FunctionDecl const *F, Context &conte
 		if( F->getParamDecl(args_to_bind)->hasDefaultArg() ) break;
 	}
 
-	for( ; args_to_bind <= num_params; ++args_to_bind ) code += module + bind_function(F, args_to_bind, args_to_bind == num_params, context, parent, always_use_lambda or F->isVariadic()) + '\n';
+	for( ; args_to_bind <= num_params; ++args_to_bind ) {
+		code += module + bind_function(F, args_to_bind, args_to_bind == num_params, context, parent, always_use_lambda or F->isVariadic()) + '\n';
+		if (args_to_bind < num_params && !is_bindable(F->getParamDecl(args_to_bind)->getOriginalType().getCanonicalType()))
+			break; // if we find a non bindable param, break out
+	}
 
 	return code;
 }
@@ -591,7 +601,13 @@ bool is_bindable_raw(FunctionDecl const *F)
 
 	r &= is_bindable(rt);
 
-	for( auto p = F->param_begin(); p != F->param_end(); ++p ) r &= is_bindable((*p)->getOriginalType().getCanonicalType());
+	for(auto p = F->param_begin(); p != F->param_end(); ++p ) {
+		if( (*p)->hasDefaultArg() ) // if there is a default arg skip the check
+			break;
+		r &= is_bindable((*p)->getOriginalType().getCanonicalType());
+	}
+
+	// for( auto p = F->param_begin(); p != F->param_end(); ++p ) r &= is_bindable((*p)->getOriginalType().getCanonicalType());
 	// outs() << "is_bindable: " << F->getQualifiedNameAsString() << " " << r << "\n";
 
 	if( r && is_banned_symbol(F) ) return false;
