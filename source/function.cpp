@@ -439,7 +439,7 @@ string bind_function(FunctionDecl const *F, uint args_to_bind, bool request_bind
 
 	string function_qualified_name = standard_name(parent ? class_qualified_name(parent) + "::" + F->getNameAsString() : F->getQualifiedNameAsString());
 
-	outs() << "-- binding function " << function_qualified_name << "\n";
+	// outs() << "-- binding function " << function_qualified_name << "\n";
 
 	// if (function_qualified_name.compare("ha::Point2D<double>::operator=") == 0) {
 	// 	clang::QualType const &rt = F->getReturnType();
