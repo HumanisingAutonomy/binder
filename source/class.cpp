@@ -1070,7 +1070,7 @@ string bind_default_constructor(ConstructorBindingInfo const &CBI) // CXXRecordD
 
 /// Generate copy constructor in most cases this will be just: "\tcl.def(pybind11::init<{} const &>());\n"_format(binding_qualified_name);
 /// but for POD structs with zero data mambers this will be a lambda function. This is done as a workaround for Pybind11 2,2+ bug
-string bind_copy_constructor(ConstructorBindingInfo const &CBI) // CXXConstructorDecl const *T, string const & binding_qualified_name)
+string bind_copy_constructor(ConstructorBindingInfo const &CBI, bool should_make_default_constructor) // CXXConstructorDecl const *T, string const & binding_qualified_name)
 {
 	// CXXRecordDecl const *C = T->getParent();
 
@@ -1109,11 +1109,13 @@ string bind_copy_constructor(ConstructorBindingInfo const &CBI) // CXXConstructo
 				   (CBI.T->getAccess() == AS_public ? "\tcl.def( pybind11::init( []({0}{1} &o){{ return new {0}(o); }} ) );\n"_format(CBI.class_qualified_name, const_bit) : "");
 		}
 	}
-	else {
+	else if (should_make_default_constructor) {
 		// outs() << "-- binding constructor " << CBI.class_qualified_name << "\n";
 
 		return "\tcl.def( pybind11::init( []({0}{1} &o){{ return new {0}(o); }} ) );\n"_format(CBI.class_qualified_name, const_bit);
 	}
+
+	return "";
 }
 
 // Generate binding for given constructor. If constructor have default arguments generate set of bindings by creating separate bindings for each argument with default.
@@ -1287,10 +1289,33 @@ void ClassBinder::bind(Context &context)
 			if( t->getAccess() == AS_public and !t->isMoveConstructor() and is_bindable(*t) and !is_skipping_requested(*t, Config::get()) /*and  t->doesThisDeclarationHaveABody()*/ ) {
 				ConstructorBindingInfo CBI = {C, *t, trampoline, qualified_name, trampoline_name, context};
 
-				if( t->isCopyConstructor() /*and  not copy_constructor_processed*/ ) {
+				if( t->isCopyConstructor() /*and  not copy_constructor_processed*/ /*&& C->isTriviallyCopyable()*/ ) {
 					// constructors += "\tcl.def(pybind11::init<{} const &>());\n"_format(binding_qualified_name);
 					//(*t) -> dump();
-					constructors += bind_copy_constructor(CBI);
+					// outs() << " binding copy constructor \"" << qualified_name << "\": {"
+					// 			<< " \"defaultedCopyConstructorIsDeleted\": " << C->defaultedCopyConstructorIsDeleted() << ", "
+					// 			<< " \"hasSimpleCopyConstructor\": " << C->hasSimpleCopyConstructor() << ", "
+					// 			<< " \"hasSimpleCopyAssignment\": " << C->hasSimpleCopyAssignment() << ", "
+					// 			<< " \"hasUserDeclaredCopyConstructor\": " << C->hasUserDeclaredCopyConstructor() << ", "
+					// 			<< " \"needsImplicitCopyConstructor\": " << C->needsImplicitCopyConstructor() << ", "
+					// 			<< " \"needsOverloadResolutionForCopyConstructor\": " << C->needsOverloadResolutionForCopyConstructor() << ", "
+					// 			<< " \"implicitCopyConstructorHasConstParam\": " << C->implicitCopyConstructorHasConstParam() << ", "
+					// 			<< " \"hasCopyConstructorWithConstParam\": " << C->hasCopyConstructorWithConstParam() << ", "
+					// 			<< " \"hasUserDeclaredCopyAssignment\": " << C->hasUserDeclaredCopyAssignment() << ", "
+					// 			<< " \"needsImplicitCopyAssignment\": " << C->needsImplicitCopyAssignment() << ", "
+					// 			<< " \"needsOverloadResolutionForCopyAssignment\": " << C->needsOverloadResolutionForCopyAssignment() << ", "
+					// 			<< " \"implicitCopyAssignmentHasConstParam\": " << C->implicitCopyAssignmentHasConstParam() << ", "
+					// 			<< " \"hasCopyAssignmentWithConstParam\": " << C->hasCopyAssignmentWithConstParam() << ", "
+					// 			<< " \"hasConstexprNonCopyMoveConstructor\": " << C->hasConstexprNonCopyMoveConstructor() << ", "
+					// 			<< " \"hasTrivialCopyConstructor\": " << C->hasTrivialCopyConstructor() << ", "
+					// 			<< " \"hasTrivialCopyConstructorForCall\": " << C->hasTrivialCopyConstructorForCall() << ", "
+					// 			<< " \"hasNonTrivialCopyConstructor\": " << C->hasNonTrivialCopyConstructor() << ", "
+					// 			<< " \"hasNonTrivialCopyConstructorForCall\": " << C->hasNonTrivialCopyConstructorForCall() << ", "
+					// 			<< " \"hasTrivialCopyAssignment\": " << C->hasTrivialCopyAssignment() << ", "
+					// 			<< " \"hasNonTrivialCopyAssignment\": " << C->hasNonTrivialCopyAssignment() << ", "
+					// 			<< " \"isTriviallyCopyable\": " << C->isTriviallyCopyable() << ", "
+					// 			<< "},\n";
+					constructors += bind_copy_constructor(CBI, C->isTriviallyCopyable());
 					// copy_constructor_processed = true;
 				}
 				else if( t->isDefaultConstructor() and t->getNumParams() == 0 ) constructors += bind_default_constructor(CBI); // workaround for Pybind11-2.2 issues

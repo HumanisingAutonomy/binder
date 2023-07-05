@@ -373,10 +373,17 @@ string bind_function_setter(const string &module, FunctionDecl const *F, Context
 	string function_qualified_name = standard_name(parent ? class_qualified_name(parent) + "::" + F->getNameAsString() : F->getQualifiedNameAsString());
 	CXXMethodDecl const *m = dyn_cast<CXXMethodDecl>(F);
 
-	if (F->getReturnType()->isReferenceType()) {
+	if (F->getReturnType()->isReferenceType() && !m->isConst()) {
 		const clang::QualType &qt = F->getReturnType();
 		const clang::QualType &nonRefQt = qt.getNonReferenceType();
 		const clang::Type* nonRef = nonRefQt.getTypePtr();
+
+		// outs() << " checking " << function_qualified_name
+		// 		<< "     ref " << qt.isConstQualified()
+		// 		<< " non ref " << nonRefQt.isConstQualified()
+		// 		<< " method  " << m->isConst() 
+		// 		<< "\n";
+
 		if (nonRef->isFundamentalType()) {
 
 			string function, documentation;
