@@ -665,6 +665,22 @@ string simplify_std_class_name(string const &type)
 	// }
 }
 
+bool is_unique_ptr(clang::QualType const &qt)
+{
+	string name = standard_name(qt.getAsString());
+	static std::array<string, 4> const unique_variants = {
+		"std::unique_ptr",
+		"class std::unique_ptr",
+		"const std::unique_ptr",
+		"const class std::unique_ptr"
+	};
+	bool is_unique = false;
+	for (auto unique : unique_variants)
+		is_unique |= name.rfind(unique, 0) == 0;
+
+	// outs() << "checking if " << name << " is unique " << is_unique << "\n";
+	return is_unique;
+}
 
 /// check if given class/struct is builtin in Python and therefor should not be binded
 bool is_python_builtin(NamedDecl const *C)

@@ -611,7 +611,10 @@ bool is_bindable_raw(FunctionDecl const *F)
 	for(auto p = F->param_begin(); p != F->param_end(); ++p ) {
 		if( (*p)->hasDefaultArg() ) // if there is a default arg skip the check
 			break;
-		r &= is_bindable((*p)->getOriginalType().getCanonicalType());
+		auto C = (*p)->getOriginalType().getCanonicalType();
+		// pybind11 doesn't allow unique_ptr as an argument
+		// https://pybind11.readthedocs.io/en/stable/advanced/smart_ptrs.html#std-unique-ptr
+		r &= is_bindable(C) && !is_unique_ptr((*p)->getOriginalType());
 	}
 
 	// for( auto p = F->param_begin(); p != F->param_end(); ++p ) r &= is_bindable((*p)->getOriginalType().getCanonicalType());
