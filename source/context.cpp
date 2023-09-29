@@ -25,6 +25,7 @@
 #include <fstream>
 #include <set>
 #include <sstream>
+#include <string>
 
 using llvm::errs;
 using llvm::outs;
@@ -86,12 +87,41 @@ const char *main_module_header = R"_(#include <map>
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <iostream>
 
 #include <pybind11/pybind11.h>
 
 typedef std::function< pybind11::module & (std::string const &) > ModuleGetter;
 
 {0}
+
+void makeSubmodules(const std::vector<std::string> &moduleNames, std::map <std::string, pybind11::module> &modules) {{
+
+	static std::vector<std::string> const reserved_python_words {{"nonlocal", "global", }};
+
+	auto mangle_namespace_name(
+		[](std::string const &ns) -> std::string {{
+			if ( std::find(reserved_python_words.begin(), reserved_python_words.end(), ns) == reserved_python_words.end() ) return ns;
+			else return ns+'_';
+		}}
+	);
+
+	std::string prevNamespace = "";
+	std::string curNamespace = "";
+	for (const auto &curMod : moduleNames) {{
+		if (curNamespace.size() > 0)
+			curNamespace += "::"; // don't add :: to the start
+		curNamespace += mangle_namespace_name(curMod);
+		if (modules.count(curNamespace) == 0) {{
+			std::cout << "no submodule found " << curNamespace << " creating one under " << prevNamespace << std::endl;
+			modules[curNamespace] = modules[prevNamespace].def_submodule(curNamespace.c_str(), ("Bindings for " + curNamespace + " namespace").c_str());
+		}}
+		else {{
+			std::cout << "submodule " << curNamespace << " already exists moving on" << std::endl;
+		}}
+		prevNamespace = curNamespace;
+	}}
+}}
 
 PYBIND11_MODULE({1}, root_module) {{
 	root_module.doc() = "{1} module";
@@ -105,18 +135,11 @@ PYBIND11_MODULE({1}, root_module) {{
 
 	modules[""] = root_module;
 
-	static std::vector<std::string> const reserved_python_words {{"nonlocal", "global", }};
-
-	auto mangle_namespace_name(
-		[](std::string const &ns) -> std::string {{
-			if ( std::find(reserved_python_words.begin(), reserved_python_words.end(), ns) == reserved_python_words.end() ) return ns;
-			else return ns+'_';
-		}}
-	);
-
-	std::vector< std::pair<std::string, std::string> > sub_modules {{
+	std::vector< std::vector<std::string> > sub_modules {{
 {2}	}};
-	for(auto &p : sub_modules ) modules[p.first.size() ? p.first+"::"+p.second : p.second] = modules[p.first].def_submodule( mangle_namespace_name(p.second).c_str(), ("Bindings for " + p.first + "::" + p.second + " namespace").c_str() );
+	for(auto &p : sub_modules ) {{
+		makeSubmodules(p, modules);
+	}}
 
 	//pybind11::class_<std::shared_ptr<void>>(M(""), "_encapsulated_data_");
 
@@ -213,22 +236,20 @@ void Context::add_to_binded(CXXRecordDecl const *C)
 /// examine binded objects and recursivly create all nested namespaces
 std::set<string> Context::create_all_nested_namespaces()
 {
-	vector<string> namespaces;
+	std::set<string> namespaces;
 
 	for( auto &b : binders ) {
 		if( b->code().size() ) {
 			string ns = namespace_from_named_decl(b->named_decl());
 
 			while( ns.size() ) {
-				namespaces.push_back(ns);
+				namespaces.insert(ns);
 				ns = base_namespace(ns);
 			}
 		}
 	}
 
-	std::set<string> s(namespaces.begin(), namespaces.end());
-
-	return s;
+	return namespaces;
 }
 
 std::string Context::module_variable_name(std::string const &namespace_)
@@ -450,7 +471,17 @@ void Context::generate(Config const &config)
 	string namespace_pairs;
 	std::set<string> namespaces = create_all_nested_namespaces();
 	for( auto &n : namespaces ) {
-		if( n.size() ) namespace_pairs += "\t\t{{\"{}\", \"{}\"}},\n"_format(base_namespace(n), last_namespace(n));
+		if (n.size()) {
+			const auto curMods = split(n, "::");
+			namespace_pairs += "\t\t{";
+			for (size_t i = 0; i < curMods.size(); i++) {
+				namespace_pairs += "\"" + curMods[i] + "\"";
+				if (i != curMods.size() - 1)
+					namespace_pairs += ", ";
+			}
+			namespace_pairs += "},\n";
+		}
+		// if( n.size() ) namespace_pairs += "\t\t{{\"{}\", \"{}\"}},\n"_format(base_namespace(n), last_namespace(n));
 		modules += n;
 		modules += ' ';
 	}
