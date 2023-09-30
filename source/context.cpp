@@ -87,7 +87,6 @@ const char *main_module_header = R"_(#include <map>
 #include <memory>
 #include <stdexcept>
 #include <string>
-#include <iostream>
 
 #include <pybind11/pybind11.h>
 
@@ -111,13 +110,10 @@ void makeSubmodules(const std::vector<std::string> &moduleNames, std::map <std::
 	for (const auto &curMod : moduleNames) {{
 		if (curNamespace.size() > 0)
 			curNamespace += "::"; // don't add :: to the start
-		curNamespace += mangle_namespace_name(curMod);
+		const auto mangledMod = mangle_namespace_name(curMod);
+		curNamespace += mangledMod;
 		if (modules.count(curNamespace) == 0) {{
-			std::cout << "no submodule found " << curNamespace << " creating one under " << prevNamespace << std::endl;
-			modules[curNamespace] = modules[prevNamespace].def_submodule(curNamespace.c_str(), ("Bindings for " + curNamespace + " namespace").c_str());
-		}}
-		else {{
-			std::cout << "submodule " << curNamespace << " already exists moving on" << std::endl;
+			modules[curNamespace] = modules[prevNamespace].def_submodule(mangledMod.c_str(), ("Bindings for " + curNamespace + " namespace").c_str());
 		}}
 		prevNamespace = curNamespace;
 	}}
