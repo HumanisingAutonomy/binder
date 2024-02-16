@@ -36,22 +36,19 @@ namespace binder {
 
 
 /// Split string using given separator
-vector<string> split(string const &buffer, string const &separator)
-{
-	string line;
-	vector<string> lines;
+std::vector<std::string> split(const std::string &s, const std::string &delimiter) {
+    size_t pos_start = 0, pos_end, delim_len = delimiter.length();
+    std::string token;
+    std::vector<std::string> res;
 
-	for( uint i = 0; i < buffer.size(); ++i ) {
-		if( buffer.compare(i, separator.size(), separator) ) line.push_back(buffer[i]);
-		else {
-			lines.push_back(line);
-			line.resize(0);
-		}
-	}
+    while ((pos_end = s.find(delimiter, pos_start)) != std::string::npos) {
+        token = s.substr (pos_start, pos_end - pos_start);
+        pos_start = pos_end + delim_len;
+        res.push_back (token);
+    }
 
-	if( line.size() ) lines.push_back(line);
-
-	return lines;
+    res.push_back (s.substr (pos_start));
+    return res;
 }
 
 
@@ -107,6 +104,20 @@ string indent(string const &code, string const &indentation)
 	for( auto &l : lines ) r += l.size() ? indentation + l + '\n' : l + '\n';
 
 	return r;
+}
+
+
+/// remove leading and trailing tabs and spaces
+std::string trim(std::string const &s)
+{
+	static std::string const whitespaces = " \t";
+
+    auto begin = s.find_first_not_of(whitespaces);
+    if(begin == std::string::npos) return "";
+
+	auto end = s.find_last_not_of(whitespaces);
+
+    return s.substr(begin, end - begin + 1);
 }
 
 
@@ -225,7 +236,16 @@ string template_argument_to_string(clang::TemplateArgument const &t)
 #else
 	t.print(Policy, s, true);
 #endif
-	return s.str();
+
+    string r = s.str();
+
+	// // simplify result if argument is a small number, taking care of cases like 1L or 1UL
+	// if( r.size() < 5 and std::isdigit(r[0]) ) {
+	// 	if( ends_with(r, "UL" ) ) r.resize( r.size() - 2 );
+	// 	else if( ends_with(r, "L" ) ) r.resize( r.size() - 1 );
+	// }
+
+	return r;
 }
 
 
@@ -243,23 +263,23 @@ string line_number(NamedDecl const *decl)
 string mangle_type_name(string const &name, bool mark_template)
 {
 	string r;
-	bool mangle = true;
 	bool template_ = false;
 
 	for( auto &c : name ) {
-		if( c != ' ' and c != '<' and c != '>' and c != ',' and c != ':' ) {
-			r.push_back(c);
-			mangle = false;
+		if( c == ' ' or c == '<' or c == '>' or c == ',' or c == ':' ) {
+			if( r.empty() or r.back() != '_' ) r.push_back('_');
 		}
-		else if( !mangle ) {
-			mangle = true;
-			r.push_back('_');
-		}
+		else r.push_back(c);
 
 		if( c == '<' or c == '>' or c == ',' ) template_ = true;
 	}
 
-	if( template_ and mark_template ) r.push_back('t');
+	if( template_ and mark_template ) {
+		replace(r, "*", "_star_");
+		replace(r, "&", "_ref_");
+		r.push_back('t');
+	}
+
 	return r;
 }
 
