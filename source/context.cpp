@@ -90,7 +90,7 @@ const char *main_module_header = R"_(#include <map>
 
 {0}
 
-typedef std::function< pybind11::module & (std::string const &) > ModuleGetter;
+using ModuleGetter = std::function< pybind11::module & (std::string const &) >;
 
 {1}
 
@@ -101,7 +101,7 @@ void makeSubmodules(const std::vector<std::string> &moduleNames, std::map <std::
 	auto mangle_namespace_name(
 		[](std::string const &ns) -> std::string {{
 			if ( std::find(reserved_python_words.begin(), reserved_python_words.end(), ns) == reserved_python_words.end() ) return ns;
-			else return ns+'_';
+			return ns+'_';
 		}}
 	);
 
@@ -151,7 +151,7 @@ const char *module_header = R"_(
 #ifndef BINDER_PYBIND11_TYPE_CASTER
 	#define BINDER_PYBIND11_TYPE_CASTER
 	{2}
-	PYBIND11_DECLARE_HOLDER_TYPE(T, T*)
+	PYBIND11_DECLARE_HOLDER_TYPE(T, T*, false)
 	{3}
 #endif
 
@@ -268,7 +268,10 @@ void Context::bind(Config const &config)
 {
 	for( auto &sp : binders ) {
 		Binder &b(*sp);
-		if( !b.is_in_system_header() and b.bindable() ) b.request_bindings_and_skipping(config);
+		if( b.bindable() ) {
+			if( b.is_in_system_header() ) b.request_bindings_and_skipping(config, RequestFlags::skipping);
+			else b.request_bindings_and_skipping(config);
+		}
 	}
 
 	bool flag = true;
@@ -451,8 +454,8 @@ void Context::generate(Config const &config)
 
 		string const holder_type = Config::get().holder_type();
 
-		string shared_declare = "PYBIND11_DECLARE_HOLDER_TYPE(T, " + holder_type + "<T>)";
-		string shared_make_opaque = "PYBIND11_MAKE_OPAQUE(" + holder_type + "<void>)";
+		string shared_declare = "PYBIND11_DECLARE_HOLDER_TYPE(T, "+holder_type+"<T>, false)";
+		string shared_make_opaque = "PYBIND11_MAKE_OPAQUE("+holder_type+"<void>)";
 
 		string const pybind11_include = "#include <" + Config::get().pybind11_include_file() + ">";
 		code = generate_include_directives(includes) + fmt::format(module_header, pybind11_include, config.includes_code(), shared_declare, shared_make_opaque) + prefix_code + "void " +
