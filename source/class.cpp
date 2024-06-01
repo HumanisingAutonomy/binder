@@ -223,6 +223,9 @@ bool is_bindable_raw(clang::CXXRecordDecl const *C);
 /// check if generator can create binding
 bool is_bindable(clang::CXXRecordDecl const *C)
 {
+	#ifdef DEBUG_PRINTS
+	outs() << "is_bindable " << C->getQualifiedNameAsString() << template_specialization(C) << "\n";
+	#endif
 	static llvm::DenseMap<CXXRecordDecl const *, bool> cache;
 	auto it = cache.find(C);
 	if( it != cache.end() ) return it->second;
@@ -246,14 +249,15 @@ bool is_bindable(clang::CXXRecordDecl const *C)
 bool is_bindable_raw(clang::CXXRecordDecl const *C)
 {
 	bool r = true;
-
-	// outs() << "is_bindable(CXXRecordDecl): " << C->getQualifiedNameAsString() << template_specialization(C)
-	// 	   << " C->hasDefinition():" << C->hasDefinition()
-	// 	   << " C->isCompleteDefinition():" << C->isCompleteDefinition()
-	// 	   // << " C->isThisDeclarationADefinition():" << C->isThisDeclarationADefinition()
-	// 	   // << " C->getDefinition():" << C->getDefinition()
-	// 	   << " C->isDependentType():" << C->isDependentType()
-	// 	   <<"\n";
+	#ifdef DEBUG_PRINTS
+	outs() << "is_bindable_raw(CXXRecordDecl): " << C->getQualifiedNameAsString() << template_specialization(C)
+		   << " -- C->hasDefinition():" << C->hasDefinition()
+		   << " -- C->isCompleteDefinition():" << C->isCompleteDefinition()
+		   << " -- C->isThisDeclarationADefinition():" << C->isThisDeclarationADefinition()
+		   << " -- C->getDefinition():" << C->getDefinition()
+		   << " -- C->isDependentType():" << C->isDependentType()
+		   <<"\n";
+	#endif
 	string qualified_name = C->getQualifiedNameAsString();
 	// if( qualified_name != "std::pair"  and  qualified_name != "std::tuple" ) {
 	// 	if( C->isDependentType() ) return false;
@@ -269,34 +273,76 @@ bool is_bindable_raw(clang::CXXRecordDecl const *C)
 
 	// disabling bindings for anonymous namespace's
 	// if( qualified_name.rfind("(anonymous namespace)") != std::string::npos ) return false;
-	if( C->isInAnonymousNamespace() ) return false;
+	if( C->isInAnonymousNamespace() ) {
+		#ifdef DEBUG_PRINTS
+		outs() << "cant bind because isInAnonymousNamespace\n";
+		#endif
+		return false;
+	}
 	// if( C->isAnonymousStructOrUnion() ) return false;
-	if( !C->hasNameForLinkage() and !C->isCXXClassMember() ) return false;
+	if( !C->hasNameForLinkage() and !C->isCXXClassMember() ) {
+		#ifdef DEBUG_PRINTS
+		outs() << "cant bind because !hasNameForLinkage and !isCXXClassMember\n";
+		#endif
+		return false;
+	}
 
 	bool anonymous_name = qualified_name.rfind(')') != std::string::npos; // check if type name is "(anonymous)"
-	if( anonymous_name and C->hasNameForLinkage() ) return false;
-	if( anonymous_name and !C->hasNameForLinkage() and !C->isAnonymousStructOrUnion() ) return false;
+	if( anonymous_name and C->hasNameForLinkage() ) {
+		#ifdef DEBUG_PRINTS
+		outs() << "cant bind because anonymous_name and hasNameForLinkage\n";
+		#endif
+		return false;
+	}
+	if( anonymous_name and !C->hasNameForLinkage() and !C->isAnonymousStructOrUnion() ) {
+		#ifdef DEBUG_PRINTS
+		outs() << "cant bind because anonymous_name and !hasNameForLinkage and !isAnonymousStructOrUnion\n";
+		#endif
+		return false;
+	}
 
 	// if( C->isAnonymousStructOrUnion() and C->hasNameForLinkage() ) return false;
 
 	// outs() << qualified_name << ": anonymous_name:" << anonymous_name << " isAnonymousStructOrUnion: " << C->isAnonymousStructOrUnion() << " hasNameForLinkage:" << C->hasNameForLinkage() << "\n";
 
-	if( C->isDependentType() ) return false;
-	if( C->getAccess() == AS_protected or C->getAccess() == AS_private ) return false;
+	if( C->isDependentType() ) {
+		#ifdef DEBUG_PRINTS
+		outs() << "cant bind because isDependentType\n";
+		#endif
+		return false;
+	}
+	if( C->getAccess() == AS_protected or C->getAccess() == AS_private ) {
+		#ifdef DEBUG_PRINTS
+		outs() << "cant bind because access is private or protected\n";
+		#endif
+		return false;
+	}
 
 	if( !C->isCompleteDefinition() ) {
 		if( auto ts = dyn_cast<ClassTemplateSpecializationDecl>(C) ) {
 			if( qualified_name == "std::function" ) {
-				if( not is_std_function_bindable(C) ) return false;
+				if( not is_std_function_bindable(C) ) {
+					#ifdef DEBUG_PRINTS
+					outs() << "cant bind because std::function is not bindable\n";
+					#endif
+					return false;
+				}
 			}
 			else {
 				if( ts->getPointOfInstantiation() /* SourceLocation */.isInvalid() and not is_python_builtin(C) ) {
-					// outs() << "is_bindable( " << qualified_name << " " << class_qualified_name(C) << " ): no point of instantiation  found, skipping...\n";
+					#ifdef DEBUG_PRINTS
+					outs() << "is_bindable( " << qualified_name << " " << class_qualified_name(C) << " ): no point of instantiation  found, skipping...\n";
+					#endif
 					return false;
 				}
 			}
 		}
-		else return false;
+		else {
+			#ifdef DEBUG_PRINTS
+			outs() << "cant bind because no complete definition and is not ClassTemplateSpecializationDecl\n";
+			#endif
+			return false;
+		}
 	}
 
 	// if( auto t = dyn_cast<ClassTemplateSpecializationDecl>(C) ) {
@@ -325,7 +371,16 @@ bool is_bindable_raw(clang::CXXRecordDecl const *C)
 	// 	}
 	// }
 
-	if( r && is_banned_symbol(C) ) return false;
+	if( r && is_banned_symbol(C) ) {
+		#ifdef DEBUG_PRINTS
+		outs() << "cant bind because it is a band symbol\n";
+		#endif
+		return false;
+	}
+
+	#ifdef DEBUG_PRINTS
+	outs() << "result: " << r << "\n";
+	#endif
 
 	return r;
 }

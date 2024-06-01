@@ -685,7 +685,9 @@ bool is_unique_ptr(clang::QualType const &qt)
 /// check if given class/struct is builtin in Python and therefor should not be binded
 bool is_python_builtin(NamedDecl const *C)
 {
-	// outs() << "Considering: " << C->getQualifiedNameAsString() << "\n";
+	#ifdef DEBUG_PRINTS
+	outs() << "checking if " << C->getQualifiedNameAsString() << " is builtin with stl on: " << O_include_pybind11_stl << "\n";
+	#endif
 	string name = standard_name(C->getQualifiedNameAsString());
 	// if( begins_with(name, "class ") ) name = name.substr(6); // len("class ")
 
@@ -776,14 +778,30 @@ bool is_python_builtin(NamedDecl const *C)
 	};
 
 	// Not builtin's
-	if (Config::get().not_python_builtins.count(name))
+	if (Config::get().not_python_builtins.count(name)) {
+		#ifdef DEBUG_PRINTS
+		outs() << name << " is on the not_python_builtins list\n";
+		#endif
 		return false;
+	}
 	// Builtins
-	if (Config::get().python_builtins.count(name) || known_builtin.count(name))
+	if (Config::get().python_builtins.count(name) || known_builtin.count(name)) {
+		#ifdef DEBUG_PRINTS
+		outs() << name << " is either on python_builtins or known_builtin list\n";
+		#endif
 		return true;
+	}
 	// STL
-	if (O_include_pybind11_stl && stl_builtin.count(name))
+	if (O_include_pybind11_stl && stl_builtin.count(name)) {
+		#ifdef DEBUG_PRINTS
+		outs() << name << " is a std builtin\n";
+		#endif
 		return true;
+	}
+
+	#ifdef DEBUG_PRINTS
+	outs() << name << " is not a built in\n";
+	#endif
 
 	return false;
 }

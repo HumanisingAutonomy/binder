@@ -579,7 +579,14 @@ string FunctionBinder::id() const
 /// check if generator can create binding
 bool is_bindable_raw(FunctionDecl const *F)
 {
-	// outs() << "is_bindable: " << F->getQualifiedNameAsString() << "\n";
+	#ifdef DEBUG_PRINTS
+	outs() << "is_bindable_raw " << F->getQualifiedNameAsString()
+			<< " -- F->isDeleted():" << F->isDeleted()
+			<< " -- F->isOverloadedOperator():" << F->isOverloadedOperator()
+			<< " -- F->getTemplatedKind() != FunctionDecl::TK_FunctionTemplate:" << (F->getTemplatedKind() != FunctionDecl::TK_FunctionTemplate)
+			<< " -- is_banned_symbol(F):" << is_banned_symbol(F)
+			<< "\n";
+	#endif
 	// if( F->getQualifiedNameAsString() == "utility::foo" ) {
 	// 	//outs() << "FunctionDecl::TK_FunctionTemplate: " << F->getQualifiedNameAsString() << "\n";
 	// 	F->dump();
@@ -614,6 +621,7 @@ bool is_bindable_raw(FunctionDecl const *F)
 		auto C = (*p)->getOriginalType().getCanonicalType();
 		// pybind11 doesn't allow unique_ptr as an argument
 		// https://pybind11.readthedocs.io/en/stable/advanced/smart_ptrs.html#std-unique-ptr
+		// outs() << "checking arg " << p->getQualifiedNameAsString() << "\n";
 		r &= is_bindable(C) && !is_unique_ptr((*p)->getOriginalType());
 	}
 
@@ -621,12 +629,18 @@ bool is_bindable_raw(FunctionDecl const *F)
 	// outs() << "is_bindable: " << F->getQualifiedNameAsString() << " " << r << "\n";
 
 	if( r && is_banned_symbol(F) ) return false;
+	#ifdef DEBUG_PRINTS
+	outs() << "is bindable: " << r << "\n";
+	#endif
 	return r;
 }
 
 /// check if generator can create binding
 bool is_bindable(FunctionDecl const *F)
 {
+	#ifdef DEBUG_PRINTS
+	outs() << "is_bindable_raw " << F->getQualifiedNameAsString() << "\n";
+	#endif
 	static llvm::DenseMap<FunctionDecl const *, bool> cache;
 	auto it = cache.find(F);
 	if( it != cache.end() ) return it->second;
