@@ -811,6 +811,13 @@ bool is_python_builtin(NamedDecl const *C)
 		#endif
 		return true;
 	}
+	// Eigen, check if it's in the namespace
+	if (O_include_pybind11_eigen && name.rfind("Eigen::", 0) == 0) {
+		#ifdef DEBUG_PRINTS
+		outs() << name << " is an eigen builtin\n";
+		#endif
+		return true;
+	}
 
 	#ifdef DEBUG_PRINTS
 	outs() << name << " is not a built in\n";
