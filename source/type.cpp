@@ -229,6 +229,8 @@ void add_relevant_include_for_decl(NamedDecl const *decl, IncludeSet &includes /
 		make_pair("<bits/pthreadtypes.h>", "<pthread.h>"),
 		make_pair("<bits/gthr-default.h>", "<pthread.h>"),
 		make_pair("<bits/random.h>", "<random>"),
+		make_pair("<bits/chrono.h>", "<chrono.h>"),
+		make_pair("<bits/fs_path.h>", "<functional>"),
 
 		make_pair("<bits/basic_string.h>", "<string>"),
 		make_pair("<bits/basic_string.tcc>", "<string>"),
@@ -356,8 +358,6 @@ void add_relevant_include_for_decl(NamedDecl const *decl, IncludeSet &includes /
 	}
 
 
-
-
 	string include = relevant_include(decl);
 
 	for( auto &i : include_map ) {
@@ -365,6 +365,11 @@ void add_relevant_include_for_decl(NamedDecl const *decl, IncludeSet &includes /
 			include = i.second;
 			break;
 		}
+	}
+
+	if (begins_with(include, "<bits/")) {
+		outs() << "WARNING: include for '" << name << "' is from "
+			   << include << ". It is likely that there is something missing in the include map.\n";
 	}
 
 	if( include.size() ) {
