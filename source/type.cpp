@@ -805,7 +805,7 @@ bool is_python_builtin(NamedDecl const *C)
 		return true;
 	}
 	// STL
-	if (O_include_pybind11_stl && stl_builtin.count(name)) {
+	if (O_include_pybind11_stl && name.rfind("std::", 0) == 0) {
 		#ifdef DEBUG_PRINTS
 		outs() << name << " is a std builtin\n";
 		#endif
