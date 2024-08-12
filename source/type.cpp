@@ -229,8 +229,9 @@ void add_relevant_include_for_decl(NamedDecl const *decl, IncludeSet &includes /
 		make_pair("<bits/pthreadtypes.h>", "<pthread.h>"),
 		make_pair("<bits/gthr-default.h>", "<pthread.h>"),
 		make_pair("<bits/random.h>", "<random>"),
-		make_pair("<bits/chrono.h>", "<chrono.h>"),
-		make_pair("<bits/fs_path.h>", "<functional>"),
+		make_pair("<bits/chrono.h>", "<chrono>"),
+		make_pair("<bits/fs_path.h>", "<filesystem>"),
+		make_pair("<bits/refwrap.h>", "<functional>"),
 
 		make_pair("<bits/basic_string.h>", "<string>"),
 		make_pair("<bits/basic_string.tcc>", "<string>"),
