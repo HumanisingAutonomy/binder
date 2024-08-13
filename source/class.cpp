@@ -1427,7 +1427,23 @@ void ClassBinder::bind(Context &context)
 		// c += "\t// hasDefaultConstructor={} needsImplicitDefaultConstructor={} base_default_default_constructor_available={}\n"_format(C->hasDefaultConstructor(),
 		// C->needsImplicitDefaultConstructor(), base_default_default_constructor_available(C));
 
-		if( !default_constructor_processed and C->needsImplicitDefaultConstructor() and base_default_default_constructor_available(C)
+		const auto base_default_available = base_default_default_constructor_available(C);
+
+		#ifdef DEBUG_PRINTS
+			outs() <<  "binding " << binding_qualified_name << ":\n"
+				<< "   hasDefaultConstructor: " << C->hasDefaultConstructor() << "\n"
+				<< "   needsImplicitDefaultConstructor: " << C->needsImplicitDefaultConstructor() << "\n"
+				<< "   hasNonTrivialDefaultConstructor: " << C->hasNonTrivialDefaultConstructor() << "\n"
+				<< "   base_default_default_constructor_available: " << base_default_available << "\n"
+				<< "   ctors empty: " << C->ctors().empty() << "\n";
+
+			outs() << "ctors default constructable:\n";
+			for (const auto ctors : C->ctors()) {
+				outs() << ctors->isDefaultConstructor() << "\n";
+			}
+		#endif
+
+		if( !default_constructor_processed and C->needsImplicitDefaultConstructor() and base_default_available and !C->ctors().empty()
 			// ( C->ctor_begin() == C->ctor_end() and  is_default_default_constructor_available(C)  and  !default_constructor_processed)
 			// or (C->hasDefaultConstructor()  and  !default_constructor_processed )
 
@@ -1437,7 +1453,7 @@ void ClassBinder::bind(Context &context)
 			/*and  !C->needsImplicitDefaultConstructor() and !C->hasNonTrivialDefaultConstructor()*/
 		) { // No constructors defined, adding default constructor
 
-			// c += "\tcl.def(pybind11::init<>());__\n";  // making sure that default is appering first
+			// c += "\tcl.def(pybind11::init<>());__\n";  // making sure that default is appearing first
 			c += bind_default_constructor(ConstructorBindingInfo{C, nullptr, trampoline, qualified_name, trampoline_name, context}); // making sure that default is appering first
 		}
 		c += constructors;
